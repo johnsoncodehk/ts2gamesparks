@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "lib": ["es5", "es2015"],
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "alwaysStrict": true,
+        "outDir": "../lib/",
+        "removeComments": true,
+    }
+}

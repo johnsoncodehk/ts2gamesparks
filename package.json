@@ -1,0 +1,19 @@
+{
+  "name": "ts2gamesparks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./lib/ts2gamesparks.js",
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/mkdirp": "latest",
+    "typescript": "latest",
+    "mkdirp": "latest"
+  },
+  "scripts": {},
+  "author": "",
+  "bin": {
+    "ts2gs": "./bin/js2gs.js"
+  },
+  "license": "ISC",
+  "dependencies": {}
+}
