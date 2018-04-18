@@ -5,9 +5,7 @@
   "main": "./lib/ts2gamesparks.js",
   "devDependencies": {
     "@types/node": "latest",
-    "@types/mkdirp": "latest",
-    "typescript": "latest",
-    "mkdirp": "latest"
+    "@types/mkdirp": "latest"
   },
   "scripts": {},
   "author": "",
@@ -15,5 +13,8 @@
     "ts2gs": "./bin/js2gs.js"
   },
   "license": "ISC",
-  "dependencies": {}
+  "dependencies": {
+    "typescript": "latest",
+    "mkdirp": "latest"
+  }
 }
