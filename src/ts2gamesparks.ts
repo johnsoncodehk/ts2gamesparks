@@ -12,17 +12,17 @@ function getTsConfig() {
 	let content = ts.parseJsonSourceFileConfigFileContent(config, ts.sys, path.dirname(file));
 	return content;
 }
-function getLanguageService(rootFileNames: string[], options: ts.CompilerOptions) {
+function getLanguageService(tsConfig: ts.ParsedCommandLine) {
 	const files: ts.MapLike<{ version: number }> = {};
 
 	// initialize the list of files
-	rootFileNames.forEach(fileName => {
+	tsConfig.fileNames.forEach(fileName => {
 		files[fileName] = { version: 0 };
 	});
 
 	// Create the language service host to allow the LS to communicate with the host
 	const servicesHost: ts.LanguageServiceHost = {
-		getScriptFileNames: () => rootFileNames,
+		getScriptFileNames: () => tsConfig.fileNames,
 		getScriptVersion: (fileName) => files[fileName] && files[fileName].version.toString(),
 		getScriptSnapshot: (fileName) => {
 			if (!fs.existsSync(fileName)) {
@@ -32,7 +32,7 @@ function getLanguageService(rootFileNames: string[], options: ts.CompilerOptions
 			return ts.ScriptSnapshot.fromString(fs.readFileSync(fileName).toString());
 		},
 		getCurrentDirectory: () => process.cwd(),
-		getCompilationSettings: () => options,
+		getCompilationSettings: () => tsConfig.options,
 		getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
 		fileExists: ts.sys.fileExists,
 		readFile: ts.sys.readFile,
@@ -42,7 +42,7 @@ function getLanguageService(rootFileNames: string[], options: ts.CompilerOptions
 	// Create the language service files
 	return ts.createLanguageService(servicesHost, ts.createDocumentRegistry());
 }
-function buildFile(services: ts.LanguageService, filePath: string, scriptTarget: ts.ScriptTarget) {
+function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService, filePath: string) {
 
 	interface RenameInfo {
 		renameLocation: ts.RenameLocation,
@@ -86,7 +86,7 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 
 	let fileName = path.basename(filePath, ".ts");
 	let sourceCode = fs.readFileSync(filePath, encoding);
-	let tsSourceFile = createSourceFile(filePath, sourceCode, scriptTarget);
+	let tsSourceFile = createSourceFile(filePath, sourceCode, tsConfig.options.target);
 
 	/**
 	 * String Edit
@@ -101,8 +101,8 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 	});
 	let renameInfos: RenameInfo[] = [];
 
-	// 		function func() { }
-	// =>	function module_specifier_func() { }
+	// function func() { }
+	// => function module_specifier_func() { }
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
 			if (ts.isFunctionDeclaration(node) && node.name) {
@@ -112,8 +112,8 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 		});
 	}
 
-	// 		ModuleClause.func();
-	// =>	module_specifier___REMOVE_NEXT_DOT_.func();
+	// ModuleClause.func();
+	// => module_specifier___REMOVE_NEXT_DOT_.func();
 	const removeDotStr = "_REMOVE_NEXT_DOT_";
 	tsSourceFile.forEachChild(node => {
 		if (ts.isImportDeclaration(node)) {
@@ -123,8 +123,8 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 	});
 	tsSourceFile = doRename(tsSourceFile, renameInfos);
 
-	// 		module_specifier___REMOVE_NEXT_DOT_.func();
-	// =>	module_specifier_func();
+	// module_specifier___REMOVE_NEXT_DOT_.func();
+	// => module_specifier_func();
 	tsSourceFile.text = tsSourceFile.text.replace(new RegExp(removeDotStr + ".", "g"), "");
 
 	// Save change
@@ -134,8 +134,8 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 	 * Object Edit
 	 */
 
-	// 		exports.func = func;
-	// =>	**REMOVE**
+	// exports.func = func;
+	// => **REMOVE**
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
 			if (ts.isFunctionDeclaration(node)) {
@@ -149,23 +149,19 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 		});
 	}
 
-	// 		var Module = require("module")
-	// =>	require("module");
+	// var Module = require("module")
+	// => require("module");
 	tsSourceFile.forEachChild(node => {
 		if (ts.isImportDeclaration(node)) {
 			delete node.importClause;
 		}
 	});
 
-	// Save change
-	let js = ts.transpileModule(updateTsSourceFileFromData(tsSourceFile), {
-		compilerOptions: getTsConfig().options
-	}).outputText;
-
 	/**
 	 * Output JS Edit
 	 */
-	let newLine = (ts as any).getNewLineCharacter(getTsConfig().options);
+	let js = ts.transpileModule(updateTsSourceFileFromData(tsSourceFile), { compilerOptions: tsConfig.options }).outputText;
+	let newLine = (ts as any).getNewLineCharacter(tsConfig.options);
 	js = js.replace('Object.defineProperty(exports, "__esModule", { value: true });' + newLine, "");
 
 	/**
@@ -178,8 +174,8 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 	});
 }
 
-let content = getTsConfig();
-let services = getLanguageService(content.fileNames, content.options);
-content.fileNames.forEach(file => {
-	buildFile(services, file, content.options.target as ts.ScriptTarget);
+let tsConfig = getTsConfig();
+let services = getLanguageService(tsConfig);
+tsConfig.fileNames.forEach(file => {
+	buildFile(tsConfig, services, file);
 });
