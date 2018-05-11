@@ -165,9 +165,8 @@ function buildFile(services: ts.LanguageService, filePath: string, scriptTarget:
 	/**
 	 * Output JS Edit
 	 */
-	js = js.replace('Object.defineProperty(exports, "__esModule", { value: true });', "");
-	js = js.replace(new RegExp("\n\n", "g"), "\n");
-	js = js.replace(new RegExp("\r\n\r\n", "g"), "\r\n");
+	let newLine = (ts as any).getNewLineCharacter(getTsConfig().options);
+	js = js.replace('Object.defineProperty(exports, "__esModule", { value: true });' + newLine, "");
 
 	/**
 	 * Output
