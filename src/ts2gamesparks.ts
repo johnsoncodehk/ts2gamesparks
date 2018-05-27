@@ -100,6 +100,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		}
 	});
 	let renameInfos: RenameInfo[] = [];
+	let importModules: string[] = [];
 
 	// function func() { }
 	// => function module_specifier_func() { }
@@ -112,15 +113,46 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		});
 	}
 
-	// ModuleClause.func();
-	// => module_specifier___REMOVE_NEXT_DOT_.func();
+	// import * as MoudleA as "moduleA";
+	// MoudleA.funcA();
+	// => import * as module_moduleA__REMOVE_NEXT_DOT_ as "moduleA";
+	// => module_moduleA__REMOVE_NEXT_DOT_.funcA();
 	const removeDotStr = "_REMOVE_NEXT_DOT_";
 	tsSourceFile.forEachChild(node => {
 		if (ts.isImportDeclaration(node)) {
 			let nodeAny = node as any;
-			renameInfos = renameInfos.concat(getRenameInfo(services, filePath, nodeAny.importClause.namedBindings.name.pos + 1, (nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "") + removeDotStr));
+			if (nodeAny.importClause.namedBindings.name) {
+				let namedBindings = node.importClause.namedBindings as ts.NamespaceImport;
+				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, namedBindings.name.pos + 1, (nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "") + removeDotStr));
+
+				if (importModules.indexOf(nodeAny.moduleSpecifier.text) == -1)
+					importModules.push(nodeAny.moduleSpecifier.text);
+			}
 		}
 	});
+
+	// import { funcA } as "moduleA";
+	// funcA();
+	// => import { module_moduleA_funcA } as "moduleA";
+	// => module_moduleA_funcA();
+	tsSourceFile.forEachChild(node => {
+		if (ts.isImportDeclaration(node)) {
+			let nodeAny = node as any;
+			if (nodeAny.importClause.namedBindings.elements) {
+				let namedBindings = node.importClause.namedBindings as ts.NamedImports;
+				namedBindings.elements.forEach(element => {
+					let funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
+					let funcHeader = nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "";
+					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, element.name.pos + 1, funcHeader + funcName));
+
+					if (importModules.indexOf(nodeAny.moduleSpecifier.text) == -1)
+						importModules.push(nodeAny.moduleSpecifier.text);
+				});
+			}
+		}
+	});
+
+	// Do Rename
 	tsSourceFile = doRename(tsSourceFile, renameInfos);
 
 	// module_specifier___REMOVE_NEXT_DOT_.func();
@@ -163,6 +195,16 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	let js = ts.transpileModule(updateTsSourceFileFromData(tsSourceFile), { compilerOptions: tsConfig.options }).outputText;
 	let newLine = (ts as any).getNewLineCharacter(tsConfig.options);
 	js = js.replace('Object.defineProperty(exports, "__esModule", { value: true });' + newLine, "");
+
+	// Fix with case:
+	// import * as ModuleA from "moduleA";
+	// import { funcA } from "moduleA";
+	// ModuleA.funcA();
+	// => module_moduleA_module_moduleA_funcA();
+	importModules.forEach(im => {
+		let header = getModuleFuncHead(im);
+		js = js.replace(new RegExp(header + header, "g"), header);
+	});
 
 	/**
 	 * Output
