@@ -95,20 +95,29 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	// Check export module
 	let isExportModule = false;
 	tsSourceFile.forEachChild(node => {
-		if (ts.isFunctionDeclaration(node) && node.modifiers && !!node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
+		if (node.modifiers && !!node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
 			isExportModule = true;
 		}
 	});
 	let renameInfos: RenameInfo[] = [];
 	let importModules: string[] = [];
 
-	// function func() { }
-	// => function module_specifier_func() { }
+	// export function func() { }
+	// => export function module_specifier_func() { }
+	// export let obj = { }
+	// => export function module_specifier_obj() { }
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
 			if (ts.isFunctionDeclaration(node) && node.name) {
 				let newName = getModuleFuncHead(fileName) + node.name.escapedText;
 				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, node.name.pos, newName));
+			}
+			if (ts.isVariableStatement(node)) {
+				node.declarationList.declarations.forEach(declaration => {
+					let declarationAny = declaration as any;
+					var newName = getModuleFuncHead(fileName) + declarationAny.name.escapedText;
+					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, declaration.name.pos + 1, newName));
+				});
 			}
 		});
 	}
@@ -167,15 +176,14 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	 */
 
 	// exports.func = func;
+	// exports.obj = obj;
 	// => **REMOVE**
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
-			if (ts.isFunctionDeclaration(node)) {
-				if (node.modifiers) {
-					let exportIndex = node.modifiers.findIndex(m => m.kind == ts.SyntaxKind.ExportKeyword);
-					if (exportIndex >= 0) {
-						delete node.modifiers; // todo (Should not remove all modifiers)
-					}
+			if (node.modifiers) {
+				let exportIndex = node.modifiers.findIndex(m => m.kind == ts.SyntaxKind.ExportKeyword);
+				if (exportIndex >= 0) {
+					delete node.modifiers; // todo (Should not remove all modifiers)
 				}
 			}
 		});
