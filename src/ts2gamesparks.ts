@@ -110,13 +110,13 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		tsSourceFile.forEachChild(node => {
 			if (ts.isFunctionDeclaration(node) && node.name) {
 				let newName = getModuleFuncHead(fileName) + node.name.escapedText;
-				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, node.name.pos, newName));
+				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, node.name.end, newName));
 			}
 			if (ts.isVariableStatement(node)) {
 				node.declarationList.declarations.forEach(declaration => {
 					let declarationAny = declaration as any;
 					var newName = getModuleFuncHead(fileName) + declarationAny.name.escapedText;
-					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, declaration.name.pos + 1, newName));
+					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, declaration.name.end, newName));
 				});
 			}
 		});
@@ -132,7 +132,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			let nodeAny = node as any;
 			if (nodeAny.importClause.namedBindings.name) {
 				let namedBindings = node.importClause.namedBindings as ts.NamespaceImport;
-				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, namedBindings.name.pos + 1, (nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "") + removeDotStr));
+				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, namedBindings.name.end, (nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "") + removeDotStr));
 
 				if (importModules.indexOf(nodeAny.moduleSpecifier.text) == -1)
 					importModules.push(nodeAny.moduleSpecifier.text);
@@ -152,7 +152,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 				namedBindings.elements.forEach(element => {
 					let funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
 					let funcHeader = nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "";
-					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, element.name.pos + 1, funcHeader + funcName));
+					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, element.name.end, funcHeader + funcName));
 
 					if (importModules.indexOf(nodeAny.moduleSpecifier.text) == -1)
 						importModules.push(nodeAny.moduleSpecifier.text);
