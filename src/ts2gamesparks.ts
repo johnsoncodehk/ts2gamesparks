@@ -4,7 +4,7 @@ import * as path from "path";
 import * as mkdirp from "mkdirp";
 
 const encoding = "utf8";
-const moduleFuncHeader = "module_{module_name}_";
+const moduleKeywork = "module_";
 
 function getTsConfig() {
 	let file = ts.findConfigFile(process.cwd(), ts.sys.fileExists) as string;
@@ -56,8 +56,11 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			scriptTarget
 		);
 	}
-	function getModuleFuncHead(name: string) {
-		return moduleFuncHeader.replace("{module_name}", name);
+	function getModuleExportsName(name: string) {
+		return moduleKeywork + name;
+	}
+	function getModuleFuncHeader(name: string) {
+		return getModuleExportsName(name) + "_";
 	}
 	function updateTsSourceFileFromData(tsSourceFile: ts.SourceFile) {
 		return ts.createPrinter().printFile(tsSourceFile);
@@ -89,33 +92,28 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	let tsSourceFile = createSourceFile(filePath, sourceCode, tsConfig.options.target);
 
 	/**
-	 * String Edit
+	 * Renaming
 	 */
 
 	// Check export module
-	let isExportModule = false;
-	tsSourceFile.forEachChild(node => {
-		if (node.modifiers && !!node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
-			isExportModule = true;
-		}
-	});
+	let isExportModule = !!tsSourceFile.statements.find(s => s.modifiers && !!s.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword));
 	let renameInfos: RenameInfo[] = [];
 	let importModules: string[] = [];
 
 	// export function func() { }
-	// => export function module_specifier_func() { }
+	// => export function module_moduleA_func() { }
 	// export let obj = { }
-	// => export function module_specifier_obj() { }
+	// => export let module_moduleA_obj = { }
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
 			if (ts.isFunctionDeclaration(node) && node.name) {
-				let newName = getModuleFuncHead(fileName) + node.name.escapedText;
+				let newName = getModuleFuncHeader(fileName) + node.name.escapedText;
 				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, node.name.end, newName));
 			}
-			if (ts.isVariableStatement(node)) {
+			else if (ts.isVariableStatement(node)) {
 				node.declarationList.declarations.forEach(declaration => {
 					let declarationAny = declaration as any;
-					var newName = getModuleFuncHead(fileName) + declarationAny.name.escapedText;
+					var newName = getModuleFuncHeader(fileName) + declarationAny.name.escapedText;
 					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, declaration.name.end, newName));
 				});
 			}
@@ -124,18 +122,20 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 
 	// import * as MoudleA as "moduleA";
 	// MoudleA.funcA();
-	// => import * as module_moduleA__REMOVE_NEXT_DOT_ as "moduleA";
-	// => module_moduleA__REMOVE_NEXT_DOT_.funcA();
-	const removeDotStr = "_REMOVE_NEXT_DOT_";
+	// => import * as module_moduleA as "moduleA";
+	// => module_moduleA.funcA();
 	tsSourceFile.forEachChild(node => {
 		if (ts.isImportDeclaration(node)) {
-			let nodeAny = node as any;
-			if (nodeAny.importClause.namedBindings.name) {
+			// @ts-ignore
+			if (node.importClause.namedBindings.name) {
 				let namedBindings = node.importClause.namedBindings as ts.NamespaceImport;
-				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, namedBindings.name.end, (nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "") + removeDotStr));
+				// @ts-ignore
+				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, namedBindings.name.end, getModuleExportsName(node.moduleSpecifier.text)));
 
-				if (importModules.indexOf(nodeAny.moduleSpecifier.text) == -1)
-					importModules.push(nodeAny.moduleSpecifier.text);
+				// @ts-ignore
+				if (importModules.indexOf(node.moduleSpecifier.text) == -1)
+					// @ts-ignore
+					importModules.push(node.moduleSpecifier.text);
 			}
 		}
 	});
@@ -146,16 +146,18 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	// => module_moduleA_funcA();
 	tsSourceFile.forEachChild(node => {
 		if (ts.isImportDeclaration(node)) {
-			let nodeAny = node as any;
-			if (nodeAny.importClause.namedBindings.elements) {
+			// @ts-ignore
+			if (node.importClause.namedBindings.elements) {
 				let namedBindings = node.importClause.namedBindings as ts.NamedImports;
 				namedBindings.elements.forEach(element => {
 					let funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
-					let funcHeader = nodeAny.moduleSpecifier.text != fileName ? getModuleFuncHead(nodeAny.moduleSpecifier.text) : "";
+					// @ts-ignore
+					let funcHeader = getModuleFuncHeader(node.moduleSpecifier.text);
 					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, element.name.end, funcHeader + funcName));
-
-					if (importModules.indexOf(nodeAny.moduleSpecifier.text) == -1)
-						importModules.push(nodeAny.moduleSpecifier.text);
+					// @ts-ignore
+					if (importModules.indexOf(node.moduleSpecifier.text) == -1)
+						// @ts-ignore
+						importModules.push(node.moduleSpecifier.text);
 				});
 			}
 		}
@@ -163,10 +165,6 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 
 	// Do Rename
 	tsSourceFile = doRename(tsSourceFile, renameInfos);
-
-	// module_specifier___REMOVE_NEXT_DOT_.func();
-	// => module_specifier_func();
-	tsSourceFile.text = tsSourceFile.text.replace(new RegExp(removeDotStr + ".", "g"), "");
 
 	// Save change
 	tsSourceFile = updateTsSourceFileFromText(tsSourceFile);
@@ -177,16 +175,39 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 
 	// exports.func = func;
 	// exports.obj = obj;
-	// => **REMOVE**
+	// => var module_main = {
+	//   func: module_moduleA_func,
+	//   obj: module_moduleA_obj
+	// };
 	if (isExportModule) {
-		tsSourceFile.forEachChild(node => {
-			if (node.modifiers) {
-				let exportIndex = node.modifiers.findIndex(m => m.kind == ts.SyntaxKind.ExportKeyword);
-				if (exportIndex >= 0) {
-					delete node.modifiers; // todo (Should not remove all modifiers)
+		let elements: ts.ObjectLiteralElementLike[] = [];
+		for (let i = 0; i < tsSourceFile.statements.length; i++) {
+			let node = tsSourceFile.statements[i];
+			if (node.modifiers && node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
+				// @ts-ignore
+				node.modifiers = node.modifiers.filter(m => m.kind != ts.SyntaxKind.ExportKeyword);
+				if (ts.isFunctionDeclaration(node) && node.name) {
+					let property = ts.createPropertyAssignment((node.name.escapedText as string).replace(getModuleFuncHeader(fileName), ""), ts.createIdentifier(node.name.escapedText as string))
+					elements.push(property);
+				}
+				else if (ts.isVariableStatement(node)) {
+					node.declarationList.declarations.forEach(declaration => {
+						// @ts-ignore
+						let property = ts.createPropertyAssignment((declaration.name.escapedText as string).replace(getModuleFuncHeader(fileName), ""), ts.createIdentifier(declaration.name.escapedText as string))
+						elements.push(property);
+					});
 				}
 			}
-		});
+		}
+		let moduleExports = ts.createVariableStatement(
+			undefined,
+			ts.createVariableDeclarationList(
+				[ts.createVariableDeclaration(getModuleExportsName(fileName), undefined, ts.createObjectLiteral(elements, true))],
+				ts.NodeFlags.None,
+			),
+		);
+		// @ts-ignore
+		tsSourceFile.statements.push(moduleExports);
 	}
 
 	// var Module = require("module")
@@ -204,14 +225,16 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	let newLine = (ts as any).getNewLineCharacter(tsConfig.options);
 	js = js.replace('Object.defineProperty(exports, "__esModule", { value: true });' + newLine, "");
 
-	// Fix with case:
+	// Fix with case import self:
 	// import * as ModuleA from "moduleA";
-	// import { funcA } from "moduleA";
-	// ModuleA.funcA();
-	// => module_moduleA_module_moduleA_funcA();
-	importModules.forEach(im => {
-		let header = getModuleFuncHead(im);
-		js = js.replace(new RegExp(header + header, "g"), header);
+	// export funcA() { }
+	// MduleA.funcA();
+	// => module_moduleA.module_moduleA_funcA();
+	// Fix: module_moduleA.funcA();
+	importModules.forEach(moduleName => {
+		let exportName = getModuleExportsName(moduleName);
+		let header = getModuleFuncHeader(moduleName);
+		js = js.replace(new RegExp(exportName + "." + header, "g"), exportName + ".");
 	});
 
 	/**
