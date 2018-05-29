@@ -69,6 +69,16 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	function updateTsSourceFileFromText(tsSourceFile: ts.SourceFile) {
 		return createSourceFile(tsSourceFile.fileName, tsSourceFile.text, tsSourceFile.languageVersion);
 	}
+	function addPropertyRenameInfo(services: ts.LanguageService, filePath: string, name: ts.Identifier, renameInfos: RenameInfo[]) {
+		if (name) {
+			let newName = getModuleFuncHeader(fileName) + name.escapedText;
+			return renameInfos.concat(getRenameInfo(services, filePath, name.end, newName));
+		}
+		return renameInfos;
+	}
+	function isDeclaration(node: ts.Node): node is ts.DeclarationStatement {
+		return ts.isFunctionDeclaration(node) || ts.isEnumDeclaration(node) || ts.isClassDeclaration(node) || ts.isModuleDeclaration(node);
+	}
 	function getRenameInfo(services: ts.LanguageService, filePath: string, startPos: number, newName: string) {
 		let result = services.findRenameLocations(filePath, startPos, false, false);
 		return result.filter(r => r.fileName == filePath).map<RenameInfo>(r => {
@@ -77,6 +87,14 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 				newName: newName,
 			}
 		});
+	}
+	function addExportProperty(fileName: string, name: ts.Identifier, properties: ts.ObjectLiteralElementLike[]) {
+		if (name) {
+			let internalName = name.escapedText as string;
+			let exportName = internalName.substring(getModuleFuncHeader(fileName).length);
+			let property = ts.createPropertyAssignment(exportName, ts.createIdentifier(internalName))
+			properties.push(property);
+		}
 	}
 	function doRename(tsSourceFile: ts.SourceFile, infos: RenameInfo[]) {
 		infos = infos.sort((a, b) => { return b.renameLocation.textSpan.start - a.renameLocation.textSpan.start; });
@@ -107,15 +125,12 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	// => export let module_moduleA_obj = { }
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
-			if ((ts.isFunctionDeclaration(node) || ts.isEnumDeclaration(node)) && node.name) {
-				let newName = getModuleFuncHeader(fileName) + node.name.escapedText;
-				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, node.name.end, newName));
+			if (isDeclaration(node)) {
+				renameInfos = addPropertyRenameInfo(services, filePath, node.name as ts.Identifier, renameInfos);
 			}
 			else if (ts.isVariableStatement(node)) {
 				node.declarationList.declarations.forEach(declaration => {
-					let declarationAny = declaration as any;
-					var newName = getModuleFuncHeader(fileName) + declarationAny.name.escapedText;
-					renameInfos = renameInfos.concat(getRenameInfo(services, filePath, declaration.name.end, newName));
+					renameInfos = addPropertyRenameInfo(services, filePath, declaration.name as ts.Identifier, renameInfos);
 				});
 			}
 		});
@@ -181,21 +196,18 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	//   obj: module_moduleA_obj
 	// };
 	if (isExportModule) {
-		let elements: ts.ObjectLiteralElementLike[] = [];
+		let properties: ts.ObjectLiteralElementLike[] = [];
 		for (let i = 0; i < tsSourceFile.statements.length; i++) {
 			let node = tsSourceFile.statements[i];
 			if (node.modifiers && node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
 				// @ts-ignore
 				node.modifiers = node.modifiers.filter(m => m.kind != ts.SyntaxKind.ExportKeyword);
-				if ((ts.isFunctionDeclaration(node) || ts.isEnumDeclaration(node)) && node.name) {
-					let property = ts.createPropertyAssignment((node.name.escapedText as string).replace(getModuleFuncHeader(fileName), ""), ts.createIdentifier(node.name.escapedText as string))
-					elements.push(property);
+				if (isDeclaration(node)) {
+					addExportProperty(fileName, node.name as ts.Identifier, properties);
 				}
 				else if (ts.isVariableStatement(node)) {
 					node.declarationList.declarations.forEach(declaration => {
-						// @ts-ignore
-						let property = ts.createPropertyAssignment((declaration.name.escapedText as string).replace(getModuleFuncHeader(fileName), ""), ts.createIdentifier(declaration.name.escapedText as string))
-						elements.push(property);
+						addExportProperty(fileName, declaration.name as ts.Identifier, properties);
 					});
 				}
 			}
@@ -203,7 +215,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		let moduleExports = ts.createVariableStatement(
 			undefined,
 			ts.createVariableDeclarationList(
-				[ts.createVariableDeclaration(getModuleExportsName(fileName), undefined, ts.createObjectLiteral(elements, true))],
+				[ts.createVariableDeclaration(getModuleExportsName(fileName), undefined, ts.createObjectLiteral(properties, true))],
 				ts.NodeFlags.None,
 			),
 		);
