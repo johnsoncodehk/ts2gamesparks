@@ -107,7 +107,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	// => export let module_moduleA_obj = { }
 	if (isExportModule) {
 		tsSourceFile.forEachChild(node => {
-			if (ts.isFunctionDeclaration(node) && node.name) {
+			if ((ts.isFunctionDeclaration(node) || ts.isEnumDeclaration(node)) && node.name) {
 				let newName = getModuleFuncHeader(fileName) + node.name.escapedText;
 				renameInfos = renameInfos.concat(getRenameInfo(services, filePath, node.name.end, newName));
 			}
@@ -187,7 +187,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			if (node.modifiers && node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
 				// @ts-ignore
 				node.modifiers = node.modifiers.filter(m => m.kind != ts.SyntaxKind.ExportKeyword);
-				if (ts.isFunctionDeclaration(node) && node.name) {
+				if ((ts.isFunctionDeclaration(node) || ts.isEnumDeclaration(node)) && node.name) {
 					let property = ts.createPropertyAssignment((node.name.escapedText as string).replace(getModuleFuncHeader(fileName), ""), ts.createIdentifier(node.name.escapedText as string))
 					elements.push(property);
 				}
