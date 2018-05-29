@@ -2,6 +2,7 @@ import * as ts from "typescript";
 import * as fs from "fs";
 import * as path from "path";
 import * as mkdirp from "mkdirp";
+import * as assert from "assert";
 
 const encoding = "utf8";
 const moduleKeywork = "module_";
@@ -232,6 +233,8 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	// => module_moduleA.module_moduleA_funcA();
 	// Fix: module_moduleA.funcA();
 	importModules.forEach(moduleName => {
+		assert.equal(moduleName.indexOf("/"), -1, "Relative path is not supported on Cloud Code, please change to file name: " + moduleName);
+
 		let exportName = getModuleExportsName(moduleName);
 		let header = getModuleFuncHeader(moduleName);
 		js = js.replace(new RegExp(exportName + "." + header, "g"), exportName + ".");
