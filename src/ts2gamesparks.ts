@@ -5,7 +5,7 @@ import * as mkdirp from "mkdirp";
 import * as assert from "assert";
 
 const encoding = "utf8";
-const moduleKeywork = "module_";
+const moduleKeyword = "module_";
 
 function getTsConfig() {
 	let file = ts.findConfigFile(process.cwd(), ts.sys.fileExists) as string;
@@ -58,7 +58,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		);
 	}
 	function getModuleExportsName(name: string) {
-		return moduleKeywork + name;
+		return moduleKeyword + name;
 	}
 	function getModuleFuncHeader(name: string) {
 		return getModuleExportsName(name) + "_";
@@ -109,6 +109,12 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	let fileName = path.basename(filePath, ".ts");
 	let sourceCode = fs.readFileSync(filePath, encoding);
 	let tsSourceFile = createSourceFile(filePath, sourceCode, tsConfig.options.target);
+
+	// @ts-ignore
+	let identifiers = tsSourceFile.identifiers as Map<string, string>;
+	identifiers.forEach(identifier => {
+		assert.notEqual(identifier.indexOf(moduleKeyword), 0, "\"{identifier}\" can't use, because \"{keyword}\" is reserved word.".replace("{keyword}", moduleKeyword).replace("{identifier}", identifier));
+	});
 
 	/**
 	 * Renaming
