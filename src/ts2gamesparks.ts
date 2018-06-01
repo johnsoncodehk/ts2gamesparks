@@ -272,7 +272,7 @@ let tsConfig = getTsConfig();
 let services = getLanguageService(tsConfig);
 
 let diagnostics = services.getCompilerOptionsDiagnostics();
-assert(diagnostics.length == 0, diagnostics[0].messageText.toString());
+assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
 
 tsConfig.fileNames.forEach(file => {
 	buildFile(tsConfig, services, file);
