@@ -304,8 +304,10 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		}
 	}
 
-	doRenaming();
-	doRefactoring();
+    if (path.dirname(fileName).split("/").pop() != "rtScript") {
+		doRenaming();
+		doRefactoring();
+	}
 	doOutput();
 }
 
