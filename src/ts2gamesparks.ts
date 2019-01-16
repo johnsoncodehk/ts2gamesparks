@@ -57,8 +57,8 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 
 	assert(!!tsConfig.options.baseUrl, "tsconfig.json: !baseUrl");
 	const relativePath = path.relative(tsConfig.options.baseUrl, fileName); // ../event/eventA.ts | moduleA.ts | folder/moduleB.ts
-	const isInModules = relativePath.indexOf("..") == -1; // in "modules/"
-	const moduleName = path.basename(isInModules ? replaceSeparator(relativePath) : fileName, ".ts"); // "moduleA" | "folder__moduleB" | "eventA" | "eventB"
+	const isInModules = relativePath.indexOf("modules/") == 0 || relativePath.indexOf("rtModules/") == 0; // in "modules/" or in rtModules/
+	const moduleName = path.basename(isInModules ? replaceSeparator(relativePath.replace(/^(rtM|m)odules\//, "")) : fileName, ".ts"); // "moduleA" | "folder__moduleB" | "eventA" | "eventB"
 
 	interface RenameInfo {
 		renameLocation: ts.RenameLocation,
@@ -295,7 +295,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 				 * // after
 				 * "dict/modules/folder__moduleA.js"
 				 */
-				const relativePathJs = relativePath.replace(".ts", ".js");
+				const relativePathJs = relativePath.replace(/^(rtM|m)odules\//, "").replace(".ts", ".js");
 				jsPath = o.name.replace(relativePathJs, replaceSeparator(relativePathJs));
 			}
 			mkdirp.sync(path.dirname(jsPath));
@@ -304,10 +304,8 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		}
 	}
 
-    if (path.dirname(fileName).split("/").pop() != "rtScript") {
-		doRenaming();
-		doRefactoring();
-	}
+	doRenaming();
+	doRefactoring();
 	doOutput();
 }
 
