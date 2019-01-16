@@ -304,8 +304,10 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		}
 	}
 
-	doRenaming();
-	doRefactoring();
+	if (!/^rtModules\/|^rtScript\//.test(relativePath)) {
+		doRenaming();
+		doRefactoring();
+	}
 	doOutput();
 }
 
