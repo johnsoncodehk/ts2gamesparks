@@ -304,7 +304,8 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		}
 	}
 
-    if (path.dirname(fileName).split("/").pop() != "rtScript") {
+    const dirname = path.dirname(fileName).split("/").pop();
+    if (dirname != "rtScript" && dirname != "rtModules") {
 		doRenaming();
 		doRefactoring();
 	}
