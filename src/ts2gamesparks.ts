@@ -304,20 +304,70 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		}
 	}
 
-    const dirname = path.dirname(fileName).split("/").pop();
-    if (dirname != "rtScript" && dirname != "rtModules") {
+	const dirname = path.dirname(fileName).split("/").pop();
+	if (dirname != "rtScript" && dirname != "rtModules") {
 		doRenaming();
 		doRefactoring();
 	}
 	doOutput();
 }
+function build() {
+	const tsConfig = getTsConfig();
+	const services = getLanguageService(tsConfig);
 
-const tsConfig = getTsConfig();
-const services = getLanguageService(tsConfig);
+	const diagnostics = services.getCompilerOptionsDiagnostics();
+	assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
 
-const diagnostics = services.getCompilerOptionsDiagnostics();
-assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
+	for (const fileName of tsConfig.fileNames) {
+		buildFile(tsConfig, services, fileName);
+	}
+}
+function init() {
+	const tsconfig = {
+		"compilerOptions": {
+			"target": "es5",
+			"module": "commonjs",
+			"lib": ["es5", "es2015"],
+			"forceConsistentCasingInFileNames": true,
+			"rootDir": "./",
+			"outDir": "./dist/",
+			"baseUrl": "./modules/"
+		}
+	}
+	const tsconfig_rt = {
+		"extends": "../tsconfig.json",
+		"compilerOptions": {
+			"baseUrl": "../rtModules/"
+		}
+	}
 
-for (const fileName of tsConfig.fileNames) {
-	buildFile(tsConfig, services, fileName);
+	const tryWriteConfig = (path: string, tsconfig: any) => {
+		if (!fs.existsSync(path)) {
+			fs.writeFileSync(path, JSON.stringify(tsconfig, undefined, 2));
+		}
+		else {
+			console.log("A 'tsconfig.json' file is already defined");
+		}
+	}
+
+	console.log(ts.sys.getCurrentDirectory());
+	tryWriteConfig("tsconfig.json", tsconfig);
+
+	if (!fs.existsSync("rtModules"))
+		fs.mkdirSync("rtModules");
+	tryWriteConfig("rtModules/tsconfig.json", tsconfig_rt);
+
+	if (!fs.existsSync("rtScript"))
+		fs.mkdirSync("rtScript");
+	tryWriteConfig("rtScript/tsconfig.json", tsconfig_rt);
+}
+
+if (ts.sys.args.length == 0) {
+	build();
+}
+else {
+	const commandLine = ts.parseCommandLine(ts.sys.args);
+	if (commandLine.options.init) {
+		init();
+	}
 }
