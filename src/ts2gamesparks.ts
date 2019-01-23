@@ -330,7 +330,7 @@ function init() {
 			"lib": ["es5", "es2015"],
 			"forceConsistentCasingInFileNames": true,
 			"rootDir": "./",
-			"outDir": "./dist/",
+			"outDir": "../dist/",
 			"baseUrl": "./modules/"
 		}
 	}
