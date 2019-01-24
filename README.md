@@ -27,26 +27,39 @@ If you are not sure, please do not modify these files.
 
 ## Using
 
-### Import module
+### Export something
+:warning: Do not use export in directories other than modules and rtModules
+```typescript
+// src/modules/myModule.ts
+
+export function foo() {
+	return "foo";
+}
+export const bar = "bar"
+```
+
+### Import something
 
 ```typescript
-// path: src/modules/moduleA
-
 // do it
-import * as ModuleA from "moduleA";
-import { funcA } from "moduleA";
+import * as MyModule from "myModule";
+import { foo } from "myModule";
 
-// don't do it
-import * as ModuleA from "./moduleA";
-import * as ModuleA from "../modules/moduleA";
-import { funcA } from "./moduleA";
-import { funcA } from "../modules/moduleA";
+// don't do it!
+import * as MyModule from "./myModule";
+import * as MyModule from "../modules/myModule";
+import { foo } from "./myModule";
+import { foo } from "../modules/myModule";
 ```
 
 ### Output javascript
+When tsconfig.json under root directory
 ```
-cd src
 ts2gs
+```
+When tsconfig.json under ./src
+```
+cd src && ts2gs
 ```
 
 ## Example
