@@ -52,6 +52,10 @@ import { foo } from "./myModule";
 import { foo } from "../modules/myModule";
 ```
 
+### Prevent global namespace pollution
+If the script does not import or export anything, the script will not be recognized as a module, and the variables in the script will exist in the global namespace.
+In order to solve it, just add ```export { }``` to the first line of the script.
+
 ### Output javascript
 When tsconfig.json under root directory
 ```
