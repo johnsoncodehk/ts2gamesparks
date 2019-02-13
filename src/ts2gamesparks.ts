@@ -165,16 +165,16 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			if (ts.isImportDeclaration(node)) {
 				const namedImports = node.importClause.namedBindings as ts.NamedImports;
 				if (namedImports.elements) {
+					// @ts-ignore
+					const nodeModuleName = replaceSeparator(node.moduleSpecifier.text);
+					renameInfos.push(getRenameInfo(node.moduleSpecifier.end, nodeModuleName));
+
+					if (importModules.indexOf(nodeModuleName) == -1)
+						importModules.push(nodeModuleName);
+
 					for (const element of namedImports.elements) {
-						// @ts-ignore
-						const nodeModuleName = replaceSeparator(node.moduleSpecifier.text);
 						const funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
-
 						renameInfos = renameInfos.concat(getRenameInfos(element.name.end, moduleKeyword + nodeModuleName + "_" + funcName));
-						renameInfos.push(getRenameInfo(node.moduleSpecifier.end, nodeModuleName));
-
-						if (importModules.indexOf(nodeModuleName) == -1)
-							importModules.push(nodeModuleName);
 					}
 				}
 			}
