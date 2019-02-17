@@ -2,21 +2,20 @@
 
 ### Install ts2gamesparks
 ```
-npm install -g git+https://github.com/johnsoncodehk/ts2gamesparks.git
+$ npm install -g git+https://github.com/johnsoncodehk/ts2gamesparks.git
 ```
 
 ### Install GameSparks typings
 ```
-npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-cloud-code-api-typings.git
-npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-realtime-api-typings.git
-npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-request-api-typings.git
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-cloud-code-api-typings.git
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-realtime-api-typings.git
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-request-api-typings.git
 ```
 
 ### Init tsconfig files
 ```
-mkdir src
-cd src
-ts2gs --init
+$ mkdir src && cd src
+$ ts2gs --init
 ```
 These three files will be created:
 - src/tsconfig.json
@@ -59,11 +58,11 @@ In order to solve it, just add ```export { }``` to the first line of the script.
 ### Output javascript
 When tsconfig.json under root directory
 ```
-ts2gs
+$ ts2gs
 ```
 When tsconfig.json under ./src
 ```
-cd src && ts2gs
+$ cd src && ts2gs
 ```
 
 ## Example
