@@ -10,7 +10,7 @@
   "scripts": {},
   "author": "",
   "bin": {
-    "ts2gs": "./bin/js2gs.js"
+    "ts2gs": "./bin/ts2gs.js"
   },
   "license": "ISC",
   "dependencies": {
