@@ -8,13 +8,13 @@ const encoding = "utf8";
 const moduleKeyword = "module_";
 const useRequireOnce = true;
 
-function getTsConfig() {
-	const file = ts.findConfigFile(process.cwd(), ts.sys.fileExists) as string;
+function getTsConfig(cwd: string) {
+	const file = ts.findConfigFile(cwd, ts.sys.fileExists) as string;
 	const config = ts.readJsonConfigFile(file, ts.sys.readFile);
 	const content = ts.parseJsonSourceFileConfigFileContent(config, ts.sys, path.dirname(file));
 	return content;
 }
-function getLanguageService(tsConfig: ts.ParsedCommandLine) {
+function getLanguageService(tsConfig: ts.ParsedCommandLine, cwd: string) {
 	const files: ts.MapLike<{ version: number }> = {};
 
 	// initialize the list of files
@@ -33,7 +33,7 @@ function getLanguageService(tsConfig: ts.ParsedCommandLine) {
 
 			return ts.ScriptSnapshot.fromString(fs.readFileSync(fileName).toString());
 		},
-		getCurrentDirectory: () => process.cwd(),
+		getCurrentDirectory: () => cwd,
 		getCompilationSettings: () => tsConfig.options,
 		getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
 		fileExists: ts.sys.fileExists,
@@ -44,7 +44,7 @@ function getLanguageService(tsConfig: ts.ParsedCommandLine) {
 	// Create the language service files
 	return ts.createLanguageService(servicesHost, ts.createDocumentRegistry());
 }
-function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService, fileName: string) {
+function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService, fileName: string, cwd: string) {
 
 	const sourceCode = fs.readFileSync(fileName, encoding);
 	let tsSourceFile = ts.createSourceFile(fileName, sourceCode, tsConfig.options.target);
@@ -325,7 +325,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			}
 			mkdirp.sync(path.dirname(jsPath));
 			fs.writeFileSync(jsPath, js, encoding);
-			console.log(path.relative(process.cwd(), fileName) + " => " + path.relative(process.cwd(), jsPath))
+			console.log(path.relative(cwd, fileName) + " => " + path.relative(cwd, jsPath))
 		}
 	}
 
@@ -336,18 +336,18 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	}
 	doOutput();
 }
-function build() {
-	const tsConfig = getTsConfig();
-	const services = getLanguageService(tsConfig);
+export function build(cwd: string) {
+	const tsConfig = getTsConfig(cwd);
+	const services = getLanguageService(tsConfig, cwd);
 
 	const diagnostics = services.getCompilerOptionsDiagnostics();
 	assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
 
 	for (const fileName of tsConfig.fileNames) {
-		buildFile(tsConfig, services, fileName);
+		buildFile(tsConfig, services, fileName, cwd);
 	}
 }
-function init() {
+export function init(cwd: string) {
 	const tsconfig = {
 		"compilerOptions": {
 			"target": "es5",
@@ -366,33 +366,27 @@ function init() {
 		}
 	}
 
-	const tryWriteConfig = (path: string, tsconfig: any) => {
-		if (!fs.existsSync(path)) {
-			fs.writeFileSync(path, JSON.stringify(tsconfig, undefined, 2));
+	function tryCreateFolder(folderName: string) {
+		const folderPath = path.join(cwd, folderName);
+		if (!fs.existsSync(folderPath))
+			fs.mkdirSync(folderPath);
+	}
+	const tryWriteConfig = (fileName: string, tsconfig: any) => {
+		const filePath = path.join(cwd, fileName);
+		if (!fs.existsSync(filePath)) {
+			fs.writeFileSync(filePath, JSON.stringify(tsconfig, undefined, 2));
 		}
 		else {
-			console.log("A 'tsconfig.json' file is already defined");
+			console.log(filePath + " is already defined");
 		}
 	}
 
 	console.log(ts.sys.getCurrentDirectory());
 	tryWriteConfig("tsconfig.json", tsconfig);
 
-	if (!fs.existsSync("rtModules"))
-		fs.mkdirSync("rtModules");
+	tryCreateFolder("rtModules")
 	tryWriteConfig("rtModules/tsconfig.json", tsconfig_rt);
 
-	if (!fs.existsSync("rtScript"))
-		fs.mkdirSync("rtScript");
+	tryCreateFolder("rtScript")
 	tryWriteConfig("rtScript/tsconfig.json", tsconfig_rt);
-}
-
-if (ts.sys.args.length == 0) {
-	build();
-}
-else {
-	const commandLine = ts.parseCommandLine(ts.sys.args);
-	if (commandLine.options.init) {
-		init();
-	}
 }
