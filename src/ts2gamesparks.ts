@@ -6,6 +6,7 @@ import * as assert from "assert";
 
 const encoding = "utf8";
 const moduleKeyword = "module_";
+const useRequireOnce = true;
 
 function getTsConfig() {
 	const file = ts.findConfigFile(process.cwd(), ts.sys.fileExists) as string;
@@ -251,6 +252,30 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 				delete node.importClause;
 			}
 		});
+
+		if (useRequireOnce) {
+			/**
+			 * @example
+			 * // before
+			 * require("module");
+			 * // after
+			 * requireOnce("module");
+			 */
+			tsSourceFile.forEachChild(function (node) {
+				if (ts.isImportDeclaration(node)) {
+					// @ts-ignore
+					node.kind = ts.SyntaxKind.ExpressionStatement;
+					// @ts-ignore
+					node.expression = ts.createCall(
+						ts.createIdentifier("requireOnce"),
+						undefined,
+						// @ts-ignore
+						[ts.createStringLiteral(node.moduleSpecifier.text)],
+					);
+					delete node.moduleSpecifier;
+				}
+			});
+		}
 	}
 	function doOutput() {
 		/**
