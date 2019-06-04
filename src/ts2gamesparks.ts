@@ -343,17 +343,16 @@ export function createBuilder(cwd) {
 	function valid() {
 		const diagnostics = services.getCompilerOptionsDiagnostics();
 		assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
-		return diagnostics.length == 0;
 	}
 	function buildAllFiles() {
-		if (!valid()) return;
+		valid();
 
 		for (const fileName of tsConfig.fileNames) {
 			buildFile(tsConfig, services, fileName, cwd);
 		}
 	}
 	function buildOneFile(fileName: string) {
-		if (!valid()) return;
+		valid();
 
 		for (const fileName_2 of tsConfig.fileNames) {
 			if (path.resolve(fileName) == path.resolve(fileName_2)) {
