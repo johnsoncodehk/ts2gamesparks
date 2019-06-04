@@ -358,9 +358,11 @@ export function createBuilder(cwd) {
 		for (const fileName_2 of tsConfig.fileNames) {
 			if (path.resolve(fileName) == path.resolve(fileName_2)) {
 				buildFile(tsConfig, services, fileName_2, cwd);
-				break;
+				return;
 			}
 		}
+
+        throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
 	}
 
 	return {
