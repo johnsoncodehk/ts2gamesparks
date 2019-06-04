@@ -336,16 +336,32 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	}
 	doOutput();
 }
-export function build(cwd: string) {
+export function createBuilder(cwd) {
 	const tsConfig = getTsConfig(cwd);
 	const services = getLanguageService(tsConfig, cwd);
 
-	const diagnostics = services.getCompilerOptionsDiagnostics();
-	assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
+	function valid() {
+		const diagnostics = services.getCompilerOptionsDiagnostics();
+		assert(diagnostics.length == 0, diagnostics.length > 0 ? diagnostics[0].messageText.toString() : "");
+		return diagnostics.length == 0;
+	}
+	function buildAllFiles() {
+		if (!valid()) return;
 
-	for (const fileName of tsConfig.fileNames) {
+		for (const fileName of tsConfig.fileNames) {
+			buildFile(tsConfig, services, fileName, cwd);
+		}
+	}
+	function buildOneFile(fileName: string) {
+		if (!valid()) return;
+
 		buildFile(tsConfig, services, fileName, cwd);
 	}
+
+	return {
+		buildAllFiles: buildAllFiles,
+		buildFile: buildOneFile,
+	};
 }
 export function init(cwd: string) {
 	const tsconfig = {

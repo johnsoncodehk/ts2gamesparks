@@ -3,7 +3,7 @@ const ts2gs = require('../lib/ts2gamesparks.js')
 const ts = require("typescript");
 
 if (ts.sys.args.length == 0) {
-	ts2gs.build(process.cwd());
+	ts2gs.createBuilder(process.cwd()).buildAllFiles();
 }
 else {
 	const commandLine = ts.parseCommandLine(ts.sys.args);
