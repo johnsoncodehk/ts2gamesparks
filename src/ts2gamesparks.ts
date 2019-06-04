@@ -355,7 +355,12 @@ export function createBuilder(cwd) {
 	function buildOneFile(fileName: string) {
 		if (!valid()) return;
 
-		buildFile(tsConfig, services, fileName, cwd);
+		for (const fileName_2 of tsConfig.fileNames) {
+			if (path.resolve(fileName) == path.resolve(fileName_2)) {
+				buildFile(tsConfig, services, fileName_2, cwd);
+				break;
+			}
+		}
 	}
 
 	return {
