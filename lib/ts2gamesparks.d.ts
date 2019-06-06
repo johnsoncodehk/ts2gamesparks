@@ -1,4 +1,4 @@
-export declare function createBuilder(cwd: any): {
+export declare function createBuilder(cwd: string): {
     buildAllFiles: () => void;
     buildFile: (fileName: string) => void;
 };

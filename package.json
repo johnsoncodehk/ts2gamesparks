@@ -7,7 +7,9 @@
     "@types/node": "latest",
     "@types/mkdirp": "latest"
   },
-  "scripts": {},
+  "scripts": {
+    "tsc": "cd src && tsc -w"
+  },
   "author": "",
   "bin": {
     "ts2gs": "./bin/ts2gs.js"

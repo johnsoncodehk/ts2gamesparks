@@ -336,7 +336,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 	}
 	doOutput();
 }
-export function createBuilder(cwd) {
+export function createBuilder(cwd: string) {
 	const tsConfig = getTsConfig(cwd);
 	const services = getLanguageService(tsConfig, cwd);
 
