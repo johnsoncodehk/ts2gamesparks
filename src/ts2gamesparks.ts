@@ -286,6 +286,25 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			});
 		}
 
+		/**
+		 * @example
+		 * // before
+		 * export const foo = "foo";
+		 * export function bar() {
+		 *     return "bar";
+		 * }
+		 * // after
+		 * const module_name = (function () {
+		 *     const foo = "foo";
+		 *     function bar() {
+		 *         return "bar";
+		 *     }
+		 *     return {
+		 *         foo: foo,
+		 *         bar: bar
+		 *     };
+		 * })();
+		 */
 		if (isInModules && useIIFE) {
 			const funcReturn = ts.createReturn(ts.createObjectLiteral(properties, true));
 			const funcBody = ts.createArrowFunction([], [], [], undefined, undefined, ts.createBlock([...tsSourceFile.statements, funcReturn]));
