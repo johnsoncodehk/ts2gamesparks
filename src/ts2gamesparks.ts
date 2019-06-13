@@ -7,6 +7,7 @@ import * as assert from "assert";
 const encoding = "utf8";
 const moduleKeyword = "module_";
 const useRequireOnce = true;
+const useIIFE = true;
 
 function getTsConfig(cwd: string) {
 	const file = ts.findConfigFile(cwd, ts.sys.fileExists) as string;
@@ -105,7 +106,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		 * // before
 		 * export function func() { }
 		 * export const obj = { }
-	 	 * // after
+		 * // after
 		 * export function module_moduleA_func() { }
 		 * export const module_moduleA_obj = { }
 		 */
@@ -115,7 +116,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 				renameInfos = renameInfos.concat(getRenameInfos(name.end, newName));
 			}
 		}
-		if (isInModules) {
+		if (isInModules && !useIIFE) {
 			tsSourceFile.forEachChild(node => {
 				if (isDeclaration(node)) {
 					addPropertyRenameInfos(node.name as ts.Identifier);
@@ -158,9 +159,12 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		 * // before
 		 * import { funcA } as "moduleA";
 		 * funcA();
-		 * // after
+		 * // after (!useIIFE)
 		 * import { module_moduleA_funcA } as "moduleA";
 		 * module_moduleA_funcA();
+		 * // after (useIIFE)
+		 * import { module_moduleA.funcA } as "moduleA";
+		 * module_moduleA.funcA();
 		 */
 		tsSourceFile.forEachChild(node => {
 			if (ts.isImportDeclaration(node)) {
@@ -175,7 +179,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 
 					for (const element of namedImports.elements) {
 						const funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
-						renameInfos = renameInfos.concat(getRenameInfos(element.name.end, moduleKeyword + nodeModuleName + "_" + funcName));
+						renameInfos = renameInfos.concat(getRenameInfos(element.name.end, moduleKeyword + nodeModuleName + (useIIFE ? "." : "_") + funcName));
 					}
 				}
 			}
@@ -192,23 +196,14 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		tsSourceFile = ts.createSourceFile(tsSourceFile.fileName, newText, tsSourceFile.languageVersion);
 	}
 	function doRefactoring() {
-		/**
-		 * @example
-		 * // before
-		 * exports.foo = foo;
-		 * exports.bar = bar;
-		 * // after
-		 * var module_main = {
-		 *   foo: module_moduleA_foo,
-		 *   bar: module_moduleA_bar
-		 * };
-		 */
-		const properties: ts.ObjectLiteralElementLike[] = [];
 
+		const properties: ts.ObjectLiteralElementLike[] = [];
 		function addExportProperty(name: ts.Identifier) {
 			if (name) {
 				const internalName = name.escapedText as string;
-				const exportName = internalName.substring((moduleKeyword + moduleName + "_").length);
+				let exportName = internalName;
+				if (!useIIFE)
+					exportName = internalName.substring((moduleKeyword + moduleName + "_").length);
 				const property = ts.createPropertyAssignment(exportName, ts.createIdentifier(internalName))
 				properties.push(property);
 			}
@@ -229,6 +224,20 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 					}
 				}
 			}
+		}
+
+		/**
+		 * @example
+		 * // before
+		 * exports.foo = foo;
+		 * exports.bar = bar;
+		 * // after
+		 * var module_main = {
+		 *   foo: module_moduleA_foo,
+		 *   bar: module_moduleA_bar
+		 * };
+		 */
+		if (isInModules && !useIIFE) {
 			const moduleExports = ts.createVariableStatement(
 				undefined,
 				ts.createVariableDeclarationList(
@@ -275,6 +284,17 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 					delete node.moduleSpecifier;
 				}
 			});
+		}
+
+		if (isInModules && useIIFE) {
+			const funcReturn = ts.createReturn(ts.createObjectLiteral(properties, true));
+			const funcBody = ts.createArrowFunction([], [], [], undefined, undefined, ts.createBlock([...tsSourceFile.statements, funcReturn]));
+
+			const callFuncDecl = ts.createVariableDeclaration(moduleKeyword + moduleName, undefined, ts.createCall(funcBody, [], []))
+			const callFuncStat = ts.createVariableStatement([], [callFuncDecl]);
+
+			// @ts-ignore
+			tsSourceFile.statements = [callFuncStat];
 		}
 	}
 	function doOutput() {
@@ -361,7 +381,7 @@ export function createBuilder(cwd: string) {
 			}
 		}
 
-        throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
+		throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
 	}
 
 	return {
