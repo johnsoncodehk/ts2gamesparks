@@ -6,7 +6,6 @@ import * as assert from "assert";
 
 const encoding = "utf8";
 const useRequireOnce = true;
-const useIIFE = true;
 
 function getTsConfig(cwd: string) {
 	const file = ts.findConfigFile(cwd, ts.sys.fileExists) as string;
@@ -102,34 +101,6 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		/**
 		 * @example
 		 * // before
-		 * export function func() { }
-		 * export const obj = { }
-		 * // after
-		 * export function module_moduleA_func() { }
-		 * export const module_moduleA_obj = { }
-		 */
-		function addPropertyRenameInfos(name: ts.Identifier) {
-			if (name) {
-				const newName = moduleName + "_" + name.escapedText;
-				renameInfos = renameInfos.concat(getRenameInfos(name.end, newName));
-			}
-		}
-		if (underModules && !useIIFE) {
-			tsSourceFile.forEachChild(node => {
-				if (isDeclaration(node)) {
-					addPropertyRenameInfos(node.name as ts.Identifier);
-				}
-				else if (ts.isVariableStatement(node)) {
-					for (const declaration of node.declarationList.declarations) {
-						addPropertyRenameInfos(declaration.name as ts.Identifier);
-					}
-				}
-			});
-		}
-
-		/**
-		 * @example
-		 * // before
 		 * import * as MoudleA as "moduleA";
 		 * MoudleA.funcA();
 		 * // after
@@ -162,12 +133,9 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		 * // before
 		 * import { funcA } as "moduleA";
 		 * funcA();
-		 * // after (!useIIFE)
-		 * import { module_moduleA_funcA } as "moduleA";
-		 * module_moduleA_funcA();
-		 * // after (useIIFE)
-		 * import { module_moduleA.funcA } as "moduleA";
-		 * module_moduleA.funcA();
+		 * // after
+		 * import { modules__moduleA.funcA } as "moduleA";
+		 * modules__moduleA.funcA();
 		 */
 		tsSourceFile.forEachChild(node => {
 			if (ts.isImportDeclaration(node)) {
@@ -183,7 +151,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 
 					for (const element of namedImports.elements) {
 						const funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
-						renameInfos = renameInfos.concat(getRenameInfos(element.name.end, getImportModuleName(importName) + (useIIFE ? "." : "_") + funcName));
+						renameInfos = renameInfos.concat(getRenameInfos(element.name.end, getImportModuleName(importName) + "." + funcName));
 					}
 				}
 			}
@@ -205,9 +173,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		function addExportProperty(name: ts.Identifier) {
 			if (name) {
 				const internalName = name.escapedText as string;
-				let exportName = internalName;
-				if (!useIIFE)
-					exportName = internalName.substring(moduleName.length + 1); // + "_" length
+				const exportName = internalName;
 				const property = ts.createPropertyAssignment(exportName, ts.createIdentifier(internalName))
 				properties.push(property);
 			}
@@ -228,29 +194,6 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 					}
 				}
 			}
-		}
-
-		/**
-		 * @example
-		 * // before
-		 * exports.foo = foo;
-		 * exports.bar = bar;
-		 * // after
-		 * var module_main = {
-		 *   foo: module_moduleA_foo,
-		 *   bar: module_moduleA_bar
-		 * };
-		 */
-		if (underModules && !useIIFE) {
-			const moduleExports = ts.createVariableStatement(
-				undefined,
-				ts.createVariableDeclarationList(
-					[ts.createVariableDeclaration(moduleName, undefined, ts.createObjectLiteral(properties, true))],
-					ts.NodeFlags.None,
-				),
-			);
-			// @ts-ignore
-			tsSourceFile.statements.push(moduleExports);
 		}
 
 		/**
@@ -298,7 +241,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		 *     return "bar";
 		 * }
 		 * // after
-		 * const module_name = (function () {
+		 * const modules__name = (function () {
 		 *     const foo = "foo";
 		 *     function bar() {
 		 *         return "bar";
@@ -309,7 +252,7 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		 *     };
 		 * })();
 		 */
-		if (underModules && useIIFE) {
+		if (underModules) {
 			const funcReturn = ts.createReturn(ts.createObjectLiteral(properties, true));
 			const funcBody = ts.createArrowFunction([], [], [], undefined, undefined, ts.createBlock([...tsSourceFile.statements, funcReturn]));
 
