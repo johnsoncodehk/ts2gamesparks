@@ -4,11 +4,14 @@
   "description": "",
   "main": "./lib/ts2gamesparks.js",
   "devDependencies": {
+    "@types/fs-extra": "latest",
+    "@types/mocha": "latest",
     "@types/node": "latest",
-    "@types/mkdirp": "latest"
+    "mocha": "latest"
   },
   "scripts": {
-    "tsc": "cd src && tsc -w"
+    "tsc": "cd src && tsc -w",
+    "test": "cd test && tsc && cd .. && mocha"
   },
   "author": "",
   "bin": {
@@ -17,6 +20,6 @@
   "license": "ISC",
   "dependencies": {
     "typescript": "latest",
-    "mkdirp": "latest"
+    "fs-extra": "latest"
   }
 }

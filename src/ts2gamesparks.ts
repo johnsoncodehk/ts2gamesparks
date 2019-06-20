@@ -1,7 +1,6 @@
 import * as ts from "typescript";
-import * as fs from "fs";
+import * as fs from "fs-extra";
 import * as path from "path";
-import * as mkdirp from "mkdirp";
 import * as assert from "assert";
 
 const encoding = "utf8";
@@ -44,6 +43,29 @@ function getLanguageService(tsConfig: ts.ParsedCommandLine, cwd: string) {
 	return ts.createLanguageService(servicesHost, ts.createDocumentRegistry());
 }
 function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService, fileName: string, cwd: string) {
+	const jsCode = covertFile(tsConfig, services, fileName, cwd);
+
+	const output = services.getEmitOutput(fileName);
+	for (const o of output.outputFiles) {
+		/**
+		 * @example
+		 * // before
+		 * "dict/modules/folder/moduleA.js"
+		 * // after
+		 * "dict/modules/folder__moduleA.js"
+		 */
+		const paths = path.relative(cwd, fileName).replace(".ts", ".js").split("/");
+		paths.shift(); // remove first folder
+		const jsFileName = paths.join("/");
+		const newJsFileName = paths.join("__");
+		let jsPath = o.name.replace(jsFileName, newJsFileName);
+
+		fs.mkdirpSync(path.dirname(jsPath));
+		fs.writeFileSync(jsPath, jsCode, encoding);
+		console.log(path.relative(cwd, fileName) + " => " + path.relative(cwd, jsPath))
+	}
+}
+function covertFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService, fileName: string, cwd: string) {
 
 	const sourceCode = fs.readFileSync(fileName, encoding);
 	let tsSourceFile = ts.createSourceFile(fileName, sourceCode, tsConfig.options.target);
@@ -263,37 +285,14 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 			tsSourceFile.statements = [callFuncStat];
 		}
 	}
-	function doOutput() {
+	function doReplace() {
 		/**
 		 * Remove "__esModule"
 		 */
 		const newLine = ts["getNewLineCharacter"](tsConfig.options);
 		let js = ts.transpileModule(ts.createPrinter().printFile(tsSourceFile), { compilerOptions: tsConfig.options }).outputText;
 		js = js.replace('Object.defineProperty(exports, "__esModule", { value: true });' + newLine, "");
-
-		/**
-		 * Output
-		 */
-		const output = services.getEmitOutput(fileName);
-		for (const o of output.outputFiles) {
-
-			/**
-			 * @example
-			 * // before
-			 * "dict/modules/folder/moduleA.js"
-			 * // after
-			 * "dict/modules/folder__moduleA.js"
-			 */
-			const paths = path.relative(cwd, fileName).replace(".ts", ".js").split("/");
-			paths.shift(); // remove first folder
-			const jsFileName = paths.join("/");
-			const newJsFileName = paths.join("__");
-			let jsPath = o.name.replace(jsFileName, newJsFileName);
-
-			mkdirp.sync(path.dirname(jsPath));
-			fs.writeFileSync(jsPath, js, encoding);
-			console.log(path.relative(cwd, fileName) + " => " + path.relative(cwd, jsPath))
-		}
+		return js;
 	}
 
 	const dirname = path.dirname(fileName).split("/").pop();
@@ -301,9 +300,10 @@ function buildFile(tsConfig: ts.ParsedCommandLine, services: ts.LanguageService,
 		doRenaming();
 		doRefactoring();
 	}
-	doOutput();
+	return doReplace();
 }
 export function createBuilder(cwd: string) {
+
 	const tsConfig = getTsConfig(cwd);
 	const services = getLanguageService(tsConfig, cwd);
 
@@ -318,7 +318,7 @@ export function createBuilder(cwd: string) {
 			buildFile(tsConfig, services, fileName, cwd);
 		}
 	}
-	function buildOneFile(fileName: string) {
+	function buildFile_2(fileName: string) {
 		valid();
 
 		for (const fileName_2 of tsConfig.fileNames) {
@@ -330,10 +330,20 @@ export function createBuilder(cwd: string) {
 
 		throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
 	}
+	function covertFile_2(fileName: string) {
+		for (const fileName_2 of tsConfig.fileNames) {
+			if (path.resolve(fileName) == path.resolve(fileName_2)) {
+				return covertFile(tsConfig, services, fileName_2, cwd);
+			}
+		}
+
+		throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
+	}
 
 	return {
 		buildAllFiles: buildAllFiles,
-		buildFile: buildOneFile,
+		buildFile: buildFile_2,
+		covertFile: covertFile_2,
 	};
 }
 export function init(cwd: string) {
@@ -355,11 +365,6 @@ export function init(cwd: string) {
 		}
 	}
 
-	function tryCreateFolder(folderName: string) {
-		const folderPath = path.join(cwd, folderName);
-		if (!fs.existsSync(folderPath))
-			fs.mkdirSync(folderPath);
-	}
 	function tryWriteConfig(fileName: string, tsconfig: any) {
 		const filePath = path.join(cwd, fileName);
 		if (!fs.existsSync(filePath)) {
@@ -370,12 +375,12 @@ export function init(cwd: string) {
 		}
 	}
 
-	console.log(ts.sys.getCurrentDirectory());
+	fs.mkdirpSync(cwd);
 	tryWriteConfig("tsconfig.json", tsconfig);
 
-	tryCreateFolder("rtModules")
+	fs.mkdirpSync(path.join(cwd, "rtModules"));
 	tryWriteConfig("rtModules/tsconfig.json", tsconfig_rt);
 
-	tryCreateFolder("rtScript")
+	fs.mkdirpSync(path.join(cwd, "rtScript"));
 	tryWriteConfig("rtScript/tsconfig.json", tsconfig_rt);
 }
