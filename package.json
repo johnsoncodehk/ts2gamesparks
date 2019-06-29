@@ -7,11 +7,12 @@
     "@types/fs-extra": "latest",
     "@types/mocha": "latest",
     "@types/node": "latest",
+    "@types/yargs": "latest",
     "mocha": "latest"
   },
   "scripts": {
     "tsc": "cd src && tsc -w",
-    "test": "cd test && tsc && cd .. && mocha"
+    "test": "mocha"
   },
   "author": "",
   "bin": {

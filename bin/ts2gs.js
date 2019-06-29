@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-const ts2gs = require("../lib/ts2gamesparks.js");
-const options = require("yargs")
-	.option("init", { alias: "i" })
-	.option("useRequireOnce", { boolean: true })
-	.argv;
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var ts2gs = require("../lib/ts2gamesparks");
+var yargs = require("yargs");
+var options = yargs
+    .option("init", { alias: "i" })
+    .option("useRequireOnce", { boolean: true })
+    .argv;
 if (options.init) {
-	ts2gs.init(process.cwd());
+    ts2gs.init(process.cwd());
 }
 else {
-	const builder = new ts2gs.Builder(process.cwd(), options);
-	builder.buildAllFiles();
+    var builder = ts2gs.createBuilder(process.cwd(), options);
+    builder.buildAllFiles();
 }
