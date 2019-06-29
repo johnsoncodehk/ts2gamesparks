@@ -1,19 +1,17 @@
 ## Installing
 
 ### Install ts2gamesparks
-```
+```console
 $ npm install -g git+https://github.com/johnsoncodehk/ts2gamesparks.git
 ```
 
 ### Install GameSparks typings
-```
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-cloud-code-api-typings.git
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-realtime-api-typings.git
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-request-api-typings.git
+```console
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-typings.git
 ```
 
 ### Init tsconfig files
-```
+```console
 $ mkdir src && cd src
 $ ts2gs --init
 ```
@@ -57,11 +55,11 @@ In order to solve it, just add ```export { }``` to the first line of the script.
 
 ### Output javascript
 When tsconfig.json under root directory
-```
+```console
 $ ts2gs
 ```
 When tsconfig.json under ./src
-```
+```console
 $ cd src && ts2gs
 ```
 
