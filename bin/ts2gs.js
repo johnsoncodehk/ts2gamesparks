@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-const ts2gs = require('../lib/ts2gamesparks.js')
-const ts = require("typescript");
+const ts2gs = require("../lib/ts2gamesparks.js");
+const options = require("yargs")
+	.option("init", { alias: "i" })
+	.option("useRequireOnce", { boolean: true })
+	.argv;
 
-if (ts.sys.args.length == 0) {
-	ts2gs.createBuilder(process.cwd()).buildAllFiles();
+if (options.init) {
+	ts2gs.init(process.cwd());
 }
 else {
-	const commandLine = ts.parseCommandLine(ts.sys.args);
-	if (commandLine.options.init) {
-		ts2gs.init(process.cwd());
-	}
+	const builder = new ts2gs.Builder(process.cwd(), options);
+	builder.buildAllFiles();
 }

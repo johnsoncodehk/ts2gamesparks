@@ -19,7 +19,8 @@
   },
   "license": "ISC",
   "dependencies": {
+    "fs-extra": "latest",
     "typescript": "latest",
-    "fs-extra": "latest"
+    "yargs": "latest"
   }
 }
