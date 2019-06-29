@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var ts2gs = require("../lib/ts2gamesparks");
+var ts2gs = require("../lib");
 var yargs = require("yargs");
 var options = yargs
     .option("init", { alias: "i" })

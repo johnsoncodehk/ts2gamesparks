@@ -1,7 +1,7 @@
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as assert from "assert";
-import * as ts2gs from "../lib/ts2gamesparks";
+import * as ts2gs from "../lib";
 
 export function hasLines(fileName: string, tsCode: string, lines: string[], options?: {}) {
     let title = tsCode;

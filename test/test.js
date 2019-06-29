@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("fs-extra");
 var path = require("path");
 var assert = require("assert");
-var ts2gs = require("../lib/ts2gamesparks");
+var ts2gs = require("../lib");
 function hasLines(fileName, tsCode, lines, options) {
     var title = tsCode;
     if (options) {

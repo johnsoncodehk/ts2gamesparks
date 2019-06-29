@@ -2,7 +2,7 @@
   "name": "ts2gamesparks",
   "version": "1.0.0",
   "description": "",
-  "main": "./lib/ts2gamesparks.js",
+  "main": "./lib/index.js",
   "devDependencies": {
     "@types/fs-extra": "latest",
     "@types/mocha": "latest",
