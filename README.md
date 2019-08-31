@@ -6,8 +6,14 @@ $ npm install -g git+https://github.com/johnsoncodehk/ts2gamesparks.git
 ```
 
 ### Install GameSparks typings
+Requirement
 ```console
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-typings.git
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-cloud-code-api-typings.git
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-request-api-typings.git
+```
+Optional
+```console
+$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-realtime-api-typings.git
 ```
 
 ### Init tsconfig files
@@ -24,34 +30,33 @@ If you are not sure, please do not modify these files.
 
 ## Using
 
-### Export something
-:warning: Do not use export in directories other than modules and rtModules
-```typescript
-// src/modules/myModule.ts
+### Prevent global namespace pollution
+If the script does not import or export anything, the script will not be recognized as a module, and the variables in the script will exist in the global namespace.
+In order to solve it, just add ```export { }``` to the first line of the script.
 
-export function foo() {
-	return "foo";
+### Export something
+:warning: Do not use export in directories other than ```modules/``` and ```rtModules/```
+```typescript
+// src/modules/foo.ts
+
+export function func() {
+	/* ... */
 }
 export const bar = "bar"
 ```
 
 ### Import something
-
+:white_check_mark: Do it
 ```typescript
-// do it
-import * as MyModule from "myModule";
-import { foo } from "myModule";
-
-// don't do it!
-import * as MyModule from "./myModule";
-import * as MyModule from "../modules/myModule";
-import { foo } from "./myModule";
-import { foo } from "../modules/myModule";
+import * as Foo from "foo";
+import { bar } from "foo";
+import /* ... */ from "foo";
 ```
-
-### Prevent global namespace pollution
-If the script does not import or export anything, the script will not be recognized as a module, and the variables in the script will exist in the global namespace.
-In order to solve it, just add ```export { }``` to the first line of the script.
+:x: Don't do it!
+```typescript
+import /* ... */ from "./foo";
+import /* ... */ from "../modules/foo";
+```
 
 ### Output javascript
 When tsconfig.json under root directory
