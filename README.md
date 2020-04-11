@@ -48,8 +48,6 @@ export const bar = "bar"
 ### Import something
 :white_check_mark: Do it
 ```typescript
-import * as Foo from "foo";
-import { bar } from "foo";
 import /* ... */ from "foo";
 ```
 :x: Don't do it!
