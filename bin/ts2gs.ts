@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import * as ts2gs from "../lib";
+import * as ts2gs from "../";
 import * as yargs from "yargs";
 
 const options = yargs
