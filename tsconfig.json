@@ -9,7 +9,6 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "alwaysStrict": true,
-        "outDir": "../",
         "removeComments": true,
         "declaration": true,
     }

@@ -2,7 +2,7 @@
   "name": "ts2gamesparks",
   "version": "1.0.0",
   "description": "",
-  "main": "./lib/index.js",
+  "main": "./index.js",
   "devDependencies": {
     "@types/fs-extra": "latest",
     "@types/mocha": "latest",
@@ -11,8 +11,9 @@
     "mocha": "latest"
   },
   "scripts": {
-    "tsc": "cd src && tsc -w",
-    "test": "mocha"
+    "watch": "tsc -w",
+    "test": "tsc && mocha",
+    "publish": "tsc && npm publish"
   },
   "author": "",
   "bin": {
