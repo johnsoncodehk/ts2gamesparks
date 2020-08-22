@@ -2,18 +2,27 @@
 
 ### Install ts2gamesparks
 ```console
-$ npm install -g git+https://github.com/johnsoncodehk/ts2gamesparks.git
+$ npm install -g ts2gamesparks
 ```
 
 ### Install GameSparks typings
-Requirement
+
 ```console
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-cloud-code-api-typings.git
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-request-api-typings.git
+$ npm install --save-dev gamesparks-typings
 ```
-Optional
-```console
-$ npm install --save-dev git+https://github.com/johnsoncodehk/gamesparks-realtime-api-typings.git
+
+Add to tsconfig.json
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+	...
+    "types": [
+      "gamesparks-typings"
+    ],
+  }
+}
 ```
 
 ### Init tsconfig files

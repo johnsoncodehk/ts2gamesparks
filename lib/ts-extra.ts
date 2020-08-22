@@ -1,6 +1,5 @@
 import * as ts from "typescript";
-import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 
 export function getTsConfig(dir: string) {
     const file = ts.findConfigFile(dir, ts.sys.fileExists) as string;
@@ -21,11 +20,9 @@ export function getLanguageService(tsConfig: ts.ParsedCommandLine, dir: string) 
         getScriptFileNames: () => tsConfig.fileNames,
         getScriptVersion: (fileName) => files[fileName] && files[fileName].version.toString(),
         getScriptSnapshot: (fileName) => {
-            if (!fs.existsSync(fileName)) {
-                return undefined;
+            if (ts.sys.fileExists(fileName)) {
+                return ts.ScriptSnapshot.fromString(ts.sys.readFile(fileName));
             }
-
-            return ts.ScriptSnapshot.fromString(fs.readFileSync(fileName).toString());
         },
         getCurrentDirectory: () => dir,
         getCompilationSettings: () => tsConfig.options,

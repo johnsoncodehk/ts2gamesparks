@@ -1,19 +1,10 @@
 import * as ts from "typescript";
 import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 import { getTsConfig, getLanguageService } from "./ts-extra";
 
-export interface Options {
-	encoding?: string,
-	useRequireOnce?: boolean,
-}
-
-const defaultOptions: Options = {
-	encoding: "utf8",
-	useRequireOnce: true,
-};
-
-export function createBuilder(dir: string, options: Options = {}) {
+export function createBuilder(dir: string) {
+	dir = path.resolve(dir);
 
 	const tsConfig = getTsConfig(dir);
 	const services = getLanguageService(tsConfig, dir);
@@ -30,31 +21,28 @@ export function createBuilder(dir: string, options: Options = {}) {
 		}
 	}
 	function buildFile(fileName: string) {
+		fileName = path.resolve(fileName);
 
-		for (const fileName_2 of tsConfig.fileNames) {
-			if (path.resolve(fileName) == path.resolve(fileName_2)) {
-				emit(fileName_2);
-				return;
-			}
+		if (tsConfig.fileNames.includes(fileName)) {
+			return emit(fileName);
 		}
 
 		throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
 	}
 	function buildJs(fileName: string) {
+		fileName = path.resolve(fileName);
 
-		for (const fileName_2 of tsConfig.fileNames) {
-			if (path.resolve(fileName) == path.resolve(fileName_2)) {
-				return convert(fileName_2);
-			}
+		if (tsConfig.fileNames.includes(fileName)) {
+			return convert(fileName);
 		}
 
 		throw "file not find in array: " + JSON.stringify(tsConfig.fileNames, undefined, 4);
 	}
 	function emit(fileName: string) {
-	
+
 		const js = convert(fileName);
 		const output = services.getEmitOutput(fileName);
-	
+
 		for (const o of output.outputFiles) {
 			/**
 			 * @example
@@ -68,44 +56,38 @@ export function createBuilder(dir: string, options: Options = {}) {
 			const jsFileName = paths.join("/");
 			const newJsFileName = paths.join("__");
 			let jsPath = o.name.replace(jsFileName, newJsFileName);
-	
+
 			fs.mkdirpSync(path.dirname(jsPath));
-			fs.writeFileSync(jsPath, js, options.encoding);
+			fs.writeFileSync(jsPath, js);
 			console.log(path.relative(dir, fileName) + " => " + path.relative(dir, jsPath))
 		}
 	}
 	function convert(fileName: string) {
-	
-		for (const key in defaultOptions) {
-			if (options[key] === undefined) {
-				options[key] = defaultOptions[key];
-			}
-		}
-	
-		const sourceCode = fs.readFileSync(fileName, options.encoding);
+
+		const sourceCode = fs.readFileSync(fileName, "utf8");
 		let sourceFile = ts.createSourceFile(fileName, sourceCode, tsConfig.options.target);
 		const dirname = path.relative(dir, fileName).split("/").shift();
-	
+
 		if (dirname != "rtScript" && dirname != "rtModules") {
 			sourceFile = renameImportModules(fileName, sourceFile);
-			convertImportToGamesparksRequire(sourceFile, options.useRequireOnce);
+			convertImportToGamesparksRequire(sourceFile);
 		}
 		if (dirname == "modules") {
 			warpIIFE(sourceFile, dir, fileName);
 		}
-	
+
 		let js = ts.transpileModule(ts.createPrinter().printFile(sourceFile), { compilerOptions: tsConfig.options }).outputText;
 		js = removeUnderscoreUnderscoreESModule(js, tsConfig);
-	
+
 		return js;
 	}
 	function renameImportModules(fileName: string, sourceFile: ts.SourceFile) {
-	
+
 		interface RenameInfo {
 			renameLocation: ts.RenameLocation,
 			newName: string,
 		}
-	
+
 		function getRenameInfo(endPosition: number, newName: string): RenameInfo {
 			const result = services.findRenameLocations(fileName, endPosition, false, false);
 			const renameLocation = result.find(r => r.fileName == fileName && (r.textSpan.start + r.textSpan.length + 1) == endPosition);
@@ -138,20 +120,20 @@ export function createBuilder(dir: string, options: Options = {}) {
 		 */
 		function getNamespaceImportRenameInfos() {
 			let renameInfos: RenameInfo[] = [];
-	
+
 			sourceFile.forEachChild(node => {
 				if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
 					const namespaceImport = node.importClause.namedBindings as ts.NamespaceImport;
 					if (namespaceImport.name) {
 						const importName = node.moduleSpecifier.text;
 						const newImportName = replaceSeparator(importName);
-	
+
 						renameInfos = renameInfos.concat(getRenameInfos(namespaceImport.name.end, getImportModuleName(importName)));
 						renameInfos.push(getRenameInfo(node.moduleSpecifier.end, newImportName));
 					}
 				}
 			});
-	
+
 			return renameInfos;
 		}
 		/**
@@ -165,7 +147,7 @@ export function createBuilder(dir: string, options: Options = {}) {
 		 */
 		function getNamedImportsRenameInfos() {
 			let renameInfos: RenameInfo[] = [];
-	
+
 			sourceFile.forEachChild(node => {
 				if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
 					const namedImports = node.importClause.namedBindings as ts.NamedImports;
@@ -173,7 +155,7 @@ export function createBuilder(dir: string, options: Options = {}) {
 						const importName = node.moduleSpecifier.text;
 						const newImportName = replaceSeparator(importName);
 						renameInfos.push(getRenameInfo(node.moduleSpecifier.end, newImportName));
-	
+
 						for (const element of namedImports.elements) {
 							const funcName = element.propertyName ? element.propertyName.escapedText : element.name.escapedText;
 							renameInfos = renameInfos.concat(getRenameInfos(element.name.end, getImportModuleName(importName) + "." + funcName));
@@ -181,14 +163,14 @@ export function createBuilder(dir: string, options: Options = {}) {
 					}
 				}
 			});
-	
+
 			return renameInfos;
 		}
-	
+
 		let renameInfos: RenameInfo[] = [];
 		renameInfos = renameInfos.concat(getNamespaceImportRenameInfos());
 		renameInfos = renameInfos.concat(getNamedImportsRenameInfos());
-	
+
 		/**
 		 * Apply
 		 */
@@ -209,14 +191,14 @@ export function createBuilder(dir: string, options: Options = {}) {
  * require("module"); // !useRequireOnce
  * requireOnce("module"); // useRequireOnce
  */
-function convertImportToGamesparksRequire(sourceFile: ts.SourceFile, useRequireOnce: boolean) {
+function convertImportToGamesparksRequire(sourceFile: ts.SourceFile) {
 	sourceFile.forEachChild(function (node) {
 		if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
 			// @ts-ignore
 			node.kind = ts.SyntaxKind.ExpressionStatement;
 			// @ts-ignore
 			node.expression = ts.createCall(
-				ts.createIdentifier(useRequireOnce ? "requireOnce" : "require"),
+				ts.createIdentifier("requireOnce"),
 				undefined,
 				[node.moduleSpecifier],
 			);
@@ -255,6 +237,7 @@ function warpIIFE(sourceFile: ts.SourceFile, dir: string, fileName: string) {
 	for (let i = 0; i < sourceFile.statements.length; i++) {
 		const node = sourceFile.statements[i];
 		if (node.modifiers && node.modifiers.find(m => m.kind == ts.SyntaxKind.ExportKeyword)) {
+			// @ts-ignore
 			node.modifiers = ts.createNodeArray(node.modifiers.filter(m => m.kind != ts.SyntaxKind.ExportKeyword));
 			if (isDeclaration(node)) {
 				addExportProperty(node.name as ts.Identifier);
@@ -273,6 +256,7 @@ function warpIIFE(sourceFile: ts.SourceFile, dir: string, fileName: string) {
 	const callFuncDecl = ts.createVariableDeclaration(moduleName, undefined, ts.createCall(funcBody, [], []))
 	const callFuncStat = ts.createVariableStatement([], [callFuncDecl]);
 
+	// @ts-ignore
 	sourceFile.statements = ts.createNodeArray([callFuncStat]);
 }
 

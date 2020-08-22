@@ -1,8 +1,16 @@
 {
   "name": "ts2gamesparks",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "",
   "main": "./index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnsoncodehk/ts2gamesparks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johnsoncodehk/ts2gamesparks/issues"
+  },
+  "homepage": "https://github.com/johnsoncodehk/ts2gamesparks#readme",
   "devDependencies": {
     "@types/fs-extra": "latest",
     "@types/mocha": "latest",
@@ -21,8 +29,9 @@
   },
   "license": "ISC",
   "dependencies": {
-    "fs-extra": "latest",
     "typescript": "latest",
-    "yargs": "latest"
+    "yargs": "latest",
+    "fs-extra": "latest",
+    "upath": "latest"
   }
 }
